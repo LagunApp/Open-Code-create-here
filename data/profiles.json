@@ -1,0 +1,13 @@
+[
+  {
+    "id": "example1",
+    "name": "Ane",
+    "age": 25,
+    "sports": "Futbol",
+    "hobbies": "Leer, senderismo",
+    "music": "Indie",
+    "bio": "Me gusta conocer gente nueva y explorar conciertos locales.",
+    "photo": "https://placehold.co/128x128",
+    "createdAt": "2026-05-03T00:00:00.000Z"
+  }
+]

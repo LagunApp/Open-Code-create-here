@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>LagunApp</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header>
+    <h1>LagunApp</h1>
+    <p>Conecta con gente que comparte tus gustos</p>
+  </header>
+
+  <main>
+    <section id="auth">
+      <h2>Acceso</h2>
+      <div class="auth-forms">
+        <form id="register-form">
+          <h3>Registro</h3>
+          <label>Usuario <input name="username" required></label>
+          <label>Contraseña <input name="password" type="password" required></label>
+          <h4>Cuestionario (perfil)</h4>
+          <label>Nombre <input name="name" required></label>
+          <label>Edad <input name="age" type="number" min="13"></label>
+          <label>De dónde eres <input name="location"></label>
+          <label>Comida favorita <input name="food"></label>
+          <label>Deporte favorito <input name="sports"></label>
+          <label>Tiempo libre <input name="hobbies"></label>
+          <label>Música favorita <input name="music"></label>
+          <label>Personalidad <input name="personality"></label>
+          <label>Planes favoritos <input name="plans"></label>
+          <label>Foto (URL) <input name="photo"></label>
+          <button type="submit">Crear cuenta</button>
+        </form>
+
+        <form id="login-form">
+          <h3>Login</h3>
+          <label>Usuario <input name="username" required></label>
+          <label>Contraseña <input name="password" type="password" required></label>
+          <button type="submit">Entrar</button>
+        </form>
+      </div>
+    </section>
+
+    <section id="app-ui" style="display:none">
+      <div class="left">
+        <h2>Perfiles</h2>
+        <div id="list">Cargando...</div>
+      </div>
+      <div class="right">
+        <h2>Chat</h2>
+        <div id="chat-areas">
+          <div id="global-chat" class="chat-box"></div>
+          <form id="chat-form">
+            <input name="message" placeholder="Escribe un mensaje..." required />
+            <button type="submit">Enviar</button>
+          </form>
+        </div>
+        <h3>Grupos</h3>
+        <form id="group-form">
+          <input name="name" placeholder="Nombre del grupo" required />
+          <button type="submit">Crear grupo</button>
+        </form>
+        <div id="groups"></div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <small>Hecho con ❤️ — LagunApp</small>
+  </footer>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/app.js"></script>
+</body>
+</html>

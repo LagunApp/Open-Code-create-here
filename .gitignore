@@ -1,0 +1,7 @@
+node_modules/
+npm-debug.log
+.env
+data/users.json
+data/messages.json
+.DS_Store
+Thumbs.db

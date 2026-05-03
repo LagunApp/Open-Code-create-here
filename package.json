@@ -1,0 +1,17 @@
+{
+  "name": "lagunapp",
+  "version": "0.1.0",
+  "description": "LagunApp - conecta con gente con gustos similares",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "socket.io": "^4.7.2",
+    "bcryptjs": "^2.4.3"
+  }
+}
