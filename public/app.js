@@ -1,165 +1,138 @@
 // Client-side logic: fetch profiles, submit new profile, and listen for real-time updates
-(function () {
-  const state = { token: null, user: null };
-  const listEl = document.getElementById('list');
-  const registerForm = document.getElementById('register-form');
-  const loginForm = document.getElementById('login-form');
-  const authSection = document.getElementById('auth');
-  const appUi = document.getElementById('app-ui');
-  const chatBox = document.getElementById('global-chat');
-  const chatForm = document.getElementById('chat-form');
-  const groupForm = document.getElementById('group-form');
-  const groupsEl = document.getElementById('groups');
+// Frontend using Supabase (client-side)
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/esm/index.js';
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from './supabaseConfig.js';
 
-  function setAuth(token, user){
-    state.token = token; state.user = user;
-    if (token) {
-      localStorage.setItem('lagun_token', token);
-      authSection.style.display = 'none';
-      appUi.style.display = 'flex';
-      initSocket();
-      loadProfiles();
-      loadGroups();
-      loadMessages();
-    } else {
-      localStorage.removeItem('lagun_token');
-      authSection.style.display = '';
-      appUi.style.display = 'none';
-    }
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const listEl = document.getElementById('list');
+const registerForm = document.getElementById('register-form');
+const loginForm = document.getElementById('login-form');
+const authSection = document.getElementById('auth');
+const appUi = document.getElementById('app-ui');
+const chatBox = document.getElementById('global-chat');
+const chatForm = document.getElementById('chat-form');
+const groupForm = document.getElementById('group-form');
+const groupsEl = document.getElementById('groups');
+
+function escapeHtml(s){ return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+
+async function checkSession(){
+  const { data } = await supabase.auth.getSession();
+  if (data.session) {
+    showApp();
+    subscribeRealtime();
+    await loadProfiles();
+    await loadMessages();
+    await loadGroups();
+  } else {
+    showAuth();
   }
+}
 
-  function escapeHtml(s){
-    return String(s || '')
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
-  }
+function showApp(){ authSection.style.display = 'none'; appUi.style.display = 'flex'; }
+function showAuth(){ authSection.style.display = ''; appUi.style.display = 'none'; }
 
-  async function loadProfiles(){
-    try{
-      const res = await fetch('/api/profiles');
-      const data = await res.json();
-      renderProfiles(data);
-    }catch(err){ listEl.innerHTML = '<p>Error cargando perfiles.</p>'; console.error(err); }
-  }
+async function loadProfiles(){
+  const { data, error } = await supabase.from('profiles').select('*').order('created_at', { ascending:false });
+  if (error) { listEl.innerHTML = '<p>Error cargando perfiles.</p>'; console.error(error); return; }
+  renderProfiles(data);
+}
 
-  function renderProfiles(profiles){
-    if (!profiles || profiles.length === 0) { listEl.innerHTML = '<p>No hay perfiles todavía.</p>'; return; }
-    listEl.innerHTML = '';
-    profiles.slice().reverse().forEach(p => {
-      const card = document.createElement('div');
-      card.className = 'card';
-      card.innerHTML = `
-        <img src="${escapeHtml(p.photo || 'https://placehold.co/96x96')}" alt="foto" />
-        <div class="info">
-          <h3>${escapeHtml(p.name)} <small>${p.age ? '('+escapeHtml(String(p.age))+')' : ''}</small></h3>
-          <p><strong>De dónde:</strong> ${escapeHtml(p.location || '-')}</p>
-          <p><strong>Comida:</strong> ${escapeHtml(p.food || '-')}</p>
-          <p><strong>Deporte:</strong> ${escapeHtml(p.sports || '-')}</p>
-          <p><strong>Aficiones:</strong> ${escapeHtml(p.hobbies || '-')}</p>
-          <p><strong>Música:</strong> ${escapeHtml(p.music || '-')}</p>
-          <p><strong>Personalidad:</strong> ${escapeHtml(p.personality || '-')}</p>
-          <p><strong>Planes:</strong> ${escapeHtml(p.plans || '-')}</p>
-        </div>
-      `;
-      listEl.appendChild(card);
-    });
-  }
-
-  registerForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const fd = new FormData(registerForm);
-    const body = { username: fd.get('username'), password: fd.get('password'), profile: {} };
-    ['name','age','location','food','sports','hobbies','music','personality','plans','photo'].forEach(k => { const v = fd.get(k); if (v) body.profile[k]=v; });
-    try{
-      const res = await fetch('/api/register',{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'register failed');
-      setAuth(data.token, data.user);
-    }catch(err){ alert('Error registrando: '+err.message); console.error(err); }
+function renderProfiles(profiles){
+  if (!profiles || profiles.length===0) { listEl.innerHTML = '<p>No hay perfiles todavía.</p>'; return; }
+  listEl.innerHTML = '';
+  profiles.forEach(p => {
+    const card = document.createElement('div'); card.className='card';
+    card.innerHTML = `
+      <img src="${escapeHtml(p.photo || 'https://placehold.co/96x96')}" alt="foto" />
+      <div class="info">
+        <h3>${escapeHtml(p.name)} ${p.age?'<small>('+escapeHtml(String(p.age))+')</small>':''}</h3>
+        <p><strong>De dónde:</strong> ${escapeHtml(p.location || '-')}</p>
+        <p><strong>Comida:</strong> ${escapeHtml(p.food || '-')}</p>
+        <p><strong>Deporte:</strong> ${escapeHtml(p.sports || '-')}</p>
+        <p><strong>Aficiones:</strong> ${escapeHtml(p.hobbies || '-')}</p>
+        <p><strong>Música:</strong> ${escapeHtml(p.music || '-')}</p>
+        <p><strong>Personalidad:</strong> ${escapeHtml(p.personality || '-')}</p>
+        <p><strong>Planes:</strong> ${escapeHtml(p.plans || '-')}</p>
+      </div>
+    `;
+    listEl.appendChild(card);
   });
+}
 
-  loginForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const fd = new FormData(loginForm);
-    const body = { username: fd.get('username'), password: fd.get('password') };
-    try{
-      const res = await fetch('/api/login',{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'login failed');
-      setAuth(data.token, data.user);
-    }catch(err){ alert('Error login: '+err.message); console.error(err); }
-  });
+registerForm.addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const fd = new FormData(registerForm);
+  const username = fd.get('username');
+  const password = fd.get('password');
+  const profile = {};
+  ['name','age','location','food','sports','hobbies','music','personality','plans','photo'].forEach(k=>{ const v=fd.get(k); if (v) profile[k]=v; });
+  try{
+    const { data, error } = await supabase.auth.signUp({ email: username, password });
+    if (error) throw error;
+    // create profile row linked by auth id will be done after confirmation; for demo we'll insert anyway if anon key allows
+    await supabase.from('profiles').insert([{ ...profile, name: profile.name || username }]);
+    alert('Registro completado. Revisa tu email si Supabase requiere confirmación.');
+  }catch(err){ alert('Registro error: '+err.message); console.error(err); }
+});
 
-  // Socket.IO
-  let socket = null;
-  function initSocket(){
-    if (socket) return;
-    try{
-      socket = io();
-      socket.on('connect', () => console.log('socket connected'));
-      socket.on('new-profile', (p) => { loadProfiles(); });
-      socket.on('message', (m) => { appendMessage(m); });
-      socket.on('group', (g) => { loadGroups(); });
-    }catch(err){ console.warn('socket init failed', err); }
-  }
+loginForm.addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const fd = new FormData(loginForm);
+  const username = fd.get('username');
+  const password = fd.get('password');
+  try{
+    const { data, error } = await supabase.auth.signInWithPassword({ email: username, password });
+    if (error) throw error;
+    showApp();
+    subscribeRealtime();
+    await loadProfiles();
+    await loadMessages();
+    await loadGroups();
+  }catch(err){ alert('Login error: '+err.message); console.error(err); }
+});
 
-  // Messages
-  async function loadMessages(){
-    try{ const res = await fetch('/api/messages'); const data = await res.json(); data.forEach(appendMessage); }catch(e){console.warn(e);} }
+// Messages
+async function loadMessages(){
+  const { data, error } = await supabase.from('messages').select('*').order('created_at', { ascending:true });
+  if (error) { console.error(error); return; }
+  chatBox.innerHTML = '';
+  data.forEach(appendMessage);
+}
 
-  function appendMessage(m){
-    const el = document.createElement('div');
-    el.className = 'msg';
-    el.textContent = `[${new Date(m.createdAt).toLocaleTimeString()}] ${m.from}: ${m.text}`;
-    chatBox.appendChild(el);
-    chatBox.scrollTop = chatBox.scrollHeight;
-  }
+function appendMessage(m){ const el = document.createElement('div'); el.className='msg'; el.textContent = `[${new Date(m.created_at).toLocaleTimeString()}] ${m.from}: ${m.text}`; chatBox.appendChild(el); chatBox.scrollTop = chatBox.scrollHeight; }
 
-  chatForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const text = new FormData(chatForm).get('message');
-    if (!text) return;
-    try{
-      const res = await fetch('/api/messages', { method:'POST', headers: Object.assign({'Content-Type':'application/json'}, state.token ? {'Authorization':'Bearer '+state.token} : {}), body: JSON.stringify({ text }) });
-      if (!res.ok) throw new Error('send failed');
-      chatForm.reset();
-    }catch(err){ alert('Error enviando mensaje'); console.error(err); }
-  });
+chatForm.addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const text = new FormData(chatForm).get('message'); if (!text) return;
+  const { data: user } = await supabase.auth.getUser();
+  const from = user ? (user.user.email || user.user.id) : 'anon';
+  try{
+    await supabase.from('messages').insert([{ from, text }]);
+    chatForm.reset();
+  }catch(err){ console.error(err); alert('Error enviando mensaje'); }
+});
 
-  // Groups
-  async function loadGroups(){
-    try{ const res = await fetch('/api/groups'); const data = await res.json(); renderGroups(data); }catch(e){console.warn(e);} }
+// Groups
+async function loadGroups(){ const { data, error } = await supabase.from('groups').select('*').order('created_at', { ascending:false }); if (error) { console.error(error); return; } renderGroups(data); }
+function renderGroups(groups){ groupsEl.innerHTML=''; if (!groups || groups.length===0) { groupsEl.textContent='No hay grupos.'; return; } groups.forEach(g=>{ const d=document.createElement('div'); d.className='group'; d.textContent=`${g.name} (${g.members?g.members.length:0})`; groupsEl.appendChild(d); }); }
 
-  function renderGroups(groups){
-    groupsEl.innerHTML = '';
-    if (!groups || groups.length===0) { groupsEl.textContent = 'No hay grupos.'; return; }
-    groups.forEach(g=>{
-      const d = document.createElement('div'); d.className='group'; d.textContent = `${g.name} (${g.members ? g.members.length : 0})`;
-      groupsEl.appendChild(d);
-    });
-  }
+groupForm.addEventListener('submit', async (e)=>{ e.preventDefault(); const name = new FormData(groupForm).get('name'); if (!name) return; const { data: user } = await supabase.auth.getUser(); const uid = user ? user.user.id : null; try{ await supabase.from('groups').insert([{ name, members: uid ? [uid] : [] }]); groupForm.reset(); }catch(err){ console.error(err); alert('Error creando grupo'); } });
 
-  groupForm.addEventListener('submit', async (e)=>{
-    e.preventDefault();
-    const name = new FormData(groupForm).get('name');
-    try{
-      const res = await fetch('/api/groups', { method:'POST', headers: Object.assign({'Content-Type':'application/json'}, state.token ? {'Authorization':'Bearer '+state.token} : {}), body: JSON.stringify({ name }) });
-      if (!res.ok) throw new Error('group create failed');
-      groupForm.reset();
-      loadGroups();
-    }catch(err){ alert('Error creando grupo'); console.error(err); }
-  });
+// Realtime subscriptions
+let profileSub=null, messageSub=null, groupSub=null;
+function subscribeRealtime(){
+  if (profileSub || messageSub || groupSub) return;
+  profileSub = supabase.channel('public:profiles')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, payload => { loadProfiles(); })
+    .subscribe();
+  messageSub = supabase.channel('public:messages')
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, payload => { appendMessage(payload.new); })
+    .subscribe();
+  groupSub = supabase.channel('public:groups')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'groups' }, payload => { loadGroups(); })
+    .subscribe();
+}
 
-  // On load: restore token
-  (function init(){
-    const token = localStorage.getItem('lagun_token');
-    if (token) {
-      // best-effort: fetch nothing, set token and load data
-      setAuth(token, null);
-    }
-  })();
-
-})();
+checkSession();

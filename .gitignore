@@ -5,3 +5,4 @@ data/users.json
 data/messages.json
 .DS_Store
 Thumbs.db
+public/supabaseConfig.js

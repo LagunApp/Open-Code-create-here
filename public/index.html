@@ -71,7 +71,11 @@
     <small>Hecho con ❤️ — LagunApp</small>
   </footer>
 
-  <script src="/socket.io/socket.io.js"></script>
-  <script src="/app.js"></script>
+  <!-- Supabase client -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script type="module">
+    import('./supabaseConfig.js').catch(()=>{});
+  </script>
+  <script type="module" src="/app.js"></script>
 </body>
 </html>
